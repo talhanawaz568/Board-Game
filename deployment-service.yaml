@@ -7,7 +7,7 @@ spec:
   selector:
     matchLabels:
       app: boardgame
-  replicas: 1 # Set to 1 to save resources on Slave 1
+  replicas: 1
   template:
     metadata:
       labels:
@@ -19,30 +19,15 @@ spec:
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
-          # Fix 1: Resource management to prevent CrashLoopBackOff on Slave 1
           resources:
             requests:
-              memory: "700Mi"
+              memory: "800Mi" # Increased slightly for Java stability
               cpu: "500m"
             limits:
-              memory: "1Gi"
+              memory: "1.5Gi" # Increased to give Java more "breathing room"
               cpu: "1000m"
-          # Fix 2: Health checks to prevent unnecessary restarts
-          livenessProbe:
-            httpGet:
-              path: /
-              port: 8080
-            initialDelaySeconds: 90 # Increased delay for Java 21 startup
-            periodSeconds: 20
-          readinessProbe:
-            httpGet:
-              path: /
-              port: 8080
-            initialDelaySeconds: 90
-            periodSeconds: 20
-
+          # PROBES REMOVED TEMPORARILY TO DIAGNOSE CRASH
 ---
-
 apiVersion: v1
 kind: Service
 metadata:
@@ -55,5 +40,5 @@ spec:
     - protocol: "TCP"
       port: 80
       targetPort: 8080
-      nodePort: 31178 # Explicitly setting the port for your browser access
-  type: NodePort # Changed from LoadBalancer to NodePort for manual EC2 clusters
+      nodePort: 31178
+  type: NodePort
