@@ -1,12 +1,13 @@
 apiVersion: apps/v1
-kind: Deployment # Kubernetes resource kind we are creating
+kind: Deployment
 metadata:
   name: boardgame-deployment
+  namespace: webapps
 spec:
   selector:
     matchLabels:
       app: boardgame
-  replicas: 1 # Number of replicas that will be created for this deployment
+  replicas: 1 # Set to 1 to save resources on Slave 1
   template:
     metadata:
       labels:
@@ -14,18 +15,39 @@ spec:
     spec:
       containers:
         - name: boardgame
-          image: talha884/boardshack:latest # Image that will be used to containers in the cluster
+          image: talha884/boardshack:latest
           imagePullPolicy: Always
           ports:
-            - containerPort: 8080 # The port that the container is running on in the cluster
-
+            - containerPort: 8080
+          # Fix 1: Resource management to prevent CrashLoopBackOff on Slave 1
+          resources:
+            requests:
+              memory: "700Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          # Fix 2: Health checks to prevent unnecessary restarts
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 90 # Increased delay for Java 21 startup
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 90
+            periodSeconds: 20
 
 ---
 
-apiVersion: v1 # Kubernetes API version
-kind: Service # Kubernetes resource kind we are creating
-metadata: # Metadata of the resource kind we are creating
+apiVersion: v1
+kind: Service
+metadata:
   name: boardgame-ssvc
+  namespace: webapps
 spec:
   selector:
     app: boardgame
@@ -33,4 +55,5 @@ spec:
     - protocol: "TCP"
       port: 80
       targetPort: 8080
-  type: LoadBalancer # type of the service.
+      nodePort: 31178 # Explicitly setting the port for your browser access
+  type: NodePort # Changed from LoadBalancer to NodePort for manual EC2 clusters
